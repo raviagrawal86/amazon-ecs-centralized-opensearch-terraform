@@ -1,0 +1,12 @@
+tag_groups:
+  - name: base-tags
+    tags:
+      - name: env
+        value:
+          default: dev
+      - name: team
+        value:
+          default: devops
+      - name: department
+        value:
+          default: high-roller

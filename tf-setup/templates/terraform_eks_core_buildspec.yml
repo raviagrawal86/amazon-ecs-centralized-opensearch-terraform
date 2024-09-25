@@ -1,0 +1,38 @@
+version: 0.2
+
+env:
+  parameter-store:
+    account: "account_id"
+    env    : "env"
+
+phases:
+  install:
+    commands: 
+      - echo "Install Terraform"
+      - yum install -y wget unzip
+      - wget https://releases.hashicorp.com/terraform/1.2.3/terraform_1.2.3_linux_amd64.zip
+      - unzip terraform_1.2.3_linux_amd64.zip
+      - mv terraform /usr/bin
+      - rm terraform_1.2.3_linux_amd64.zip
+
+  pre_build:
+    commands:
+      # - echo "Assuming Role"
+      # - ASSUME_ROLE_ARN="arn:aws:iam::$account:role/eksatscale-trust-role-dev-account"
+      # - ASSUMED_ROLE=$(aws sts assume-role --role-arn $ASSUME_ROLE_ARN --role-session-name eks)
+      # - echo $ASSUMED_ROLE
+      # - export AWS_ACCESS_KEY_ID=$(echo "${ASSUMED_ROLE}" | jq -r '.Credentials.AccessKeyId')
+      # - export AWS_SECRET_ACCESS_KEY=$(echo "${ASSUMED_ROLE}" | jq -r '.Credentials.SecretAccessKey')
+      # - export AWS_SESSION_TOKEN=$(echo "${ASSUMED_ROLE}" | jq -r '.Credentials.SessionToken')
+      # - mkdir ~/.kube/
+      # - touch ~/.kube/config
+      # - cd accounts/$env/main/
+      # - aws eks update-kubeconfig --name $env-cluster || true
+      - terraform init 
+      # - terraform validate
+
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Terraform Apply
+      # - terraform apply -auto-approve
