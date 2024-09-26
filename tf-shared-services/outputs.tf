@@ -37,13 +37,3 @@ output "public_subnets" {
 output "private_subnets" {
   value = module.vpc.vpc.private_subnets
 }
-
-# output "es_cluster_name" {
-#   description = "The name of the OpenSearch cluster."
-#   value       = module.es[0].es_cluster_name
-# }
-
-# output "es_cluster_endpoint" {
-#   description = "The endpoint URL of the OpenSearch cluster."
-#   value       = module.es[0].es_cluster_endpoint
-# }

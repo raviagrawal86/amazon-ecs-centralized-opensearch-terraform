@@ -11,3 +11,24 @@ module "kms" {
 
   tags = local.tags
 }
+
+module "es" {
+  source = "./modules/opensearchserverless"
+
+  prefix = var.prefix
+  tags   = local.tags
+
+  vpc_id         = module.vpc.vpc.vpc_id
+  public_subnets = module.vpc.vpc.public_subnets
+  kms_key_arn    = module.kms.key_arn
+  aws_region     = var.aws_region
+}
+
+module "vpc" {
+  source = "./modules/vpc"
+
+  primary_cidr = var.primary_cidr
+  prefix       = var.prefix
+
+  tags = local.tags
+}
