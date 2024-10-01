@@ -1,42 +1,42 @@
 .ONESHELL:
 SHELL := /bin/bash
 
-TF_SETUP_DIR=$$(pwd)/tf-setup
-TF_ECS_DIR=$$(pwd)/tf-ecs
+TF_SHARED_SERVICES=$$(pwd)/tf-shared-services
+TF_COMPUTE_DIR=$$(pwd)/tf-compute
 
 all: format lint docs checkov validate
 
-.PHONY: create-setup
-create-setup:
+.PHONY: create-shared-services
+create-shared-services:
 	set -e
-	echo tf-setup-create: Start
-	terraform -chdir=$(TF_SETUP_DIR) init -upgrade
-	terraform -chdir=$(TF_SETUP_DIR) apply --auto-approve
-	echo tf-setup-create: Success
+	echo tf-shared-services-create: Start
+	terraform -chdir=$(TF_SHARED_SERVICES) init -upgrade
+	terraform -chdir=$(TF_SHARED_SERVICES) apply --auto-approve
+	echo tf-shared-services-create: Success
 
-.PHONY: destroy-setup
-destroy-setup:
+.PHONY: destroy-shared-services
+destroy-shared-services:
 	set -e
-	echo tf-setup-destroy: Start
-	terraform -chdir=$(TF_SETUP_DIR) init -upgrade
-	terraform -chdir=$(TF_SETUP_DIR) destroy --auto-approve
-	echo tf-setup-destroy: Success
+	echo tf-shared-services-destroy: Start
+	terraform -chdir=$(TF_SHARED_SERVICES) init -upgrade
+	terraform -chdir=$(TF_SHARED_SERVICES) destroy --auto-approve
+	echo tf-shared-services-destroy: Success
 
-.PHONY: create-core
-create-core:
+.PHONY: create-compute
+create-compute:
 	set -e
-	echo tf-core-create: Start
-	terraform -chdir=$(TF_ECS_DIR) init -upgrade
-	terraform -chdir=$(TF_ECS_DIR) apply --auto-approve
-	echo tf-core-create: Success
+	echo tf-compute-create: Start
+	terraform -chdir=$(TF_COMPUTE_DIR) init -upgrade
+	terraform -chdir=$(TF_COMPUTE_DIR) apply --auto-approve
+	echo tf-compute-create: Success
 
-.PHONY: destroy-core
-destroy-core:
+.PHONY: destroy-compute
+destroy-compute:
 	set -e
-	echo tf-core-destroy: Start
-	terraform -chdir=$(TF_ECS_DIR) init -upgrade
-	terraform -chdir=$(TF_ECS_DIR) destroy --auto-approve
-	echo tf-core-destroy: Success
+	echo tf-compute-destroy: Start
+	terraform -chdir=$(TF_COMPUTE_DIR) init -upgrade
+	terraform -chdir=$(TF_COMPUTE_DIR) destroy --auto-approve
+	echo tf-compute-destroy: Success
 
 .SILENT:
 format:
@@ -64,4 +64,13 @@ checkov:
 	echo checkov: Start
 	checkov -d . --quiet
 	echo checkov: Success
+
+.SILENT:
+docs:
+	set -e
+	echo documentation update: Start
+	terraform-docs markdown table --output-file README.md --output-mode inject $(TF_SHARED_SERVICES)/modules/opensearchserverless
+	terraform-docs markdown table --output-file README.md --output-mode inject $(TF_SHARED_SERVICES)
+	terraform-docs markdown table --output-file README.md --output-mode inject $(TF_COMPUTE_DIR)
+	echo documentation update: Success
 

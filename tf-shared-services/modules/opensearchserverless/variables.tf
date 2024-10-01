@@ -1,29 +1,37 @@
-variable "prefix" {
-  description = "Prefix uniquely identifies AWS resources. Needs to be unique per AWS (sub) account."
+variable "opensearch_prefix" {
+  description = "Prefix to uniquely identify AWS resources for the OpenSearch deployment."
   type        = string
-}
 
-variable "tags" {
-  type        = map(string)
-  description = "AWS tags that will be applied to all resources."
-}
+  validation {
+    condition     = length(var.opensearch_prefix) <= 20
+    error_message = "The opensearch_prefix must be less than or equal to 20 characters."
+  }
 
-variable "aws_region" {
-  description = "Region where Opensearch will be deployed."
-  type        = string
-}
-
-variable "vpc_id" {
-  description = "VPC ID to deploy the cluster in."
-  type        = string
-}
-
-variable "public_subnets" {
-  description = "Public subnets to deploy the es domain."
-  type        = list(string)
+  validation {
+    condition     = can(regex("^[a-z0-9-]*$", var.opensearch_prefix))
+    error_message = "The opensearch_prefix must contain only lowercase alphanumeric characters and hyphens."
+  }
 }
 
 variable "kms_key_arn" {
-  description = "The KMS ARN to be used for encryption."
+  description = "ARN of the KMS key to be used for encryption."
   type        = string
+
+  validation {
+    condition     = can(regex("^arn:aws:kms:[a-z0-9-]+:[0-9]{12}:key/[a-zA-Z0-9-]+$", var.kms_key_arn))
+    error_message = "The kms_key_arn must be a valid AWS KMS key ARN."
+  }
+}
+
+variable "opensearch_tags" {
+  description = "Map of tags to be applied to all OpenSearch resources."
+  type        = map(string)
+  default     = {}
+
+  validation {
+    condition = alltrue([
+      for key, value in var.opensearch_tags : can(regex("^[a-zA-Z0-9-_]+$", key)) && can(regex("^[a-zA-Z0-9-_]+$", value))
+    ])
+    error_message = "Each tag key and value must contain only alphanumeric characters, underscores, and hyphens."
+  }
 }

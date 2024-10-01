@@ -1,39 +1,35 @@
-output "dynamodb_table_id" {
-  value = aws_dynamodb_table.terraform_lock.id
-}
-
-output "dynamodb_table_arn" {
-  value = aws_dynamodb_table.terraform_lock.arn
-}
-
-output "kms_aliases" {
-  value = module.kms.aliases
+output "kms_alias" {
+  description = "Alias of the KMS key used for encrypting AOSS."
+  value       = module.kms.aliases
 }
 
 output "kms_arn" {
-  value = module.kms.key_arn
+  description = "ARN of the KMS key used for encrypting AOSS."
+  value       = module.kms.key_arn
 }
 
 output "kms_id" {
-  value = module.kms.key_id
+  description = "ID of the KMS key used for encrypting AOSS."
+  value       = module.kms.key_id
 }
 
-output "s3_bucket_name" {
-  value = module.s3_bucket.s3_bucket_name
+output "opensearch_collection_endpoint" {
+  description = "The endpoint URL of the OpenSearch Serverless collection"
+  value       = module.opensearch_serverless.opensearch_collection_endpoint
 }
 
-output "vpc_id" {
-  value = module.vpc.vpc.vpc_id
+output "opensearch_dashboard_endpoint" {
+  description = "The dashboard endpoint URL of the OpenSearch Serverless collection"
+  value       = module.opensearch_serverless.opensearch_dashboard_endpoint
 }
 
-output "vpc_azs" {
-  value = module.vpc.vpc.azs
-}
-
-output "public_subnets" {
-  value = module.vpc.vpc.public_subnets
-}
-
-output "private_subnets" {
-  value = module.vpc.vpc.private_subnets
+output "terraform_cross_account_deploy_roles" {
+  description = "Map of created IAM roles for cross-account deployment"
+  value = {
+    for application, role in aws_iam_role.terraform_cross_account_deploy_roles :
+    application => {
+      name = role.name
+      arn  = role.arn
+    }
+  }
 }

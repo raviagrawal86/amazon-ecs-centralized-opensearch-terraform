@@ -1,10 +1,9 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
-output "collection_enpdoint" {
-  value = aws_opensearchserverless_collection.collection.collection_endpoint
+output "opensearch_collection_endpoint" {
+  description = "The endpoint URL of the OpenSearch Serverless collection"
+  value       = aws_opensearchserverless_collection.collection.collection_endpoint
 }
 
-output "dashboard_endpoint" {
-  value = aws_opensearchserverless_collection.collection.dashboard_endpoint
+output "opensearch_dashboard_endpoint" {
+  description = "The dashboard endpoint URL of the OpenSearch Serverless collection"
+  value       = aws_opensearchserverless_collection.collection.dashboard_endpoint
 }

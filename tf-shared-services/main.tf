@@ -1,34 +1,56 @@
+##############################################
+# Creates KMS key to encrypt AOSS Collection  
+##############################################
 module "kms" {
-  #checkov:skip=CKV_TF_1:Terraform registry source cannot be pinned
-  source  = "terraform-aws-modules/kms/aws"
-  version = "1.5.0"
-
+  source = "git::https://github.com/terraform-aws-modules/terraform-aws-kms.git?ref=fe1beca2118c0cb528526e022a53381535bb93cd"
+  # version = "3.1.0"
   aliases               = ["terraform/${var.prefix}"]
-  description           = "${var.prefix} terraform s3 bucket encryption key"
+  description           = "${var.prefix} application kms key"
   enable_default_policy = true
-  key_owners            = var.admin_role_arns
-  key_statements        = local.kms_cloudwatch_access
-
-  tags = local.tags
+  tags                  = local.tags
 }
 
-module "es" {
+###############################################
+# Creates AOSS Collection & Supporting Policies
+###############################################
+module "opensearch_serverless" {
   source = "./modules/opensearchserverless"
 
-  prefix = var.prefix
-  tags   = local.tags
-
-  vpc_id         = module.vpc.vpc.vpc_id
-  public_subnets = module.vpc.vpc.public_subnets
-  kms_key_arn    = module.kms.key_arn
-  aws_region     = var.aws_region
+  opensearch_prefix = var.prefix
+  kms_key_arn       = module.kms.key_arn
+  opensearch_tags   = local.tags
 }
 
-module "vpc" {
-  source = "./modules/vpc"
+###############################################
+# AWS IAM Role & Policy for Terraform to deploy
+# resources in Compute accounts
+###############################################
+resource "aws_iam_policy" "terraform_deployment_policy" {
+  name        = "${var.prefix}-terraform-deployment-policy"
+  path        = "/"
+  description = "IAM policy for Terraform deployments"
 
-  primary_cidr = var.primary_cidr
-  prefix       = var.prefix
+  policy = data.aws_iam_policy_document.terraform_deployment_policy.json
+  tags   = local.tags
+}
 
-  tags = local.tags
+resource "aws_iam_role" "terraform_cross_account_deploy_roles" {
+  #checkov:skip=CKV_AWS_61:Ensure AWS IAM policy does not allow assume role permission across all services
+  for_each = var.target_compute_accounts
+
+  name = "${var.prefix}-${each.value}-terraform-deployment-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        "Effect" : "Allow",
+        "Principal" : {
+          "AWS" : "arn:aws:iam::${each.value}:root"
+        },
+        "Action" : "sts:AssumeRole"
+      },
+    ]
+  })
+  managed_policy_arns = [aws_iam_policy.terraform_deployment_policy.arn]
+  tags                = local.tags
 }
