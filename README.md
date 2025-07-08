@@ -1,22 +1,14 @@
-# Amazon ECS Demo with fullstack app / DevOps practices / Terraform sample
+# Centralized logging for Amazon ECS using Amazon OpenSearch Serverless
 
 ## Table of content
 
-- [Amazon ECS Demo with fullstack app / DevOps practices / Terraform sample](#amazon-ecs-demo-with-fullstack-app--devops-practices--terraform-sample)
+- [Centralized logging for Amazon ECS using Amazon OpenSearch Serverless](#centralized-logging-for-amazon-ecs-using-amazon-opensearch-serverless)
   - [Table of content](#table-of-content)
   - [Solution overview](#solution-overview)
-  - [General information](#general-information)
-  - [Infrastructure](#infrastructure)
-  - [Infrastructure Architecture](#infrastructure-architecture)
-    - [Infrastructure considerations due to demo proposals](#infrastructure-considerations-due-to-demo-proposals)
-  - [CI/CD Architecture](#cicd-architecture)
+  - [Architecture](#architecture)
   - [Prerequisites](#prerequisites)
+  - [Infrastructure](#infrastructure)
   - [Usage](#usage)
-  - [Autoscaling test](#autoscaling-test)
-  - [Application Code](#application-code)
-    - [Client app](#client-app)
-    - [Client considerations due to demo proposals](#client-considerations-due-to-demo-proposals)
-    - [Server app](#server-app)
   - [Cleanup](#cleanup)
   - [Security](#security)
   - [License](#license)
@@ -24,195 +16,179 @@
 
 ## Solution overview
 
-This repository contains Terraform code to deploy a solution that is intended to be used to run a demo. It shows how AWS resources can be used to build an architecture that reduces defects while deploying, eases remediation, mitigates deployment risks and improves the flow into production environments while gaining the advantages of a managed underlying infrastructure for containers.
+This repository contains Terraform code to deploy a centralized logging solution for Amazon ECS using Amazon OpenSearch Serverless (AOSS). The solution demonstrates how to efficiently collect and manage logs from Amazon ECS tasks running across multiple AWS accounts and centralize them into a shared OpenSearch Serverless collection. This architecture utilizes AWS FireLens with Fluent Bit to route ECS task logs to a centralized OpenSearch instance, ensuring scalability, security, and cost-efficiency across a multi-account environment.
 
-## General information
+## Architecture
 
-The project has been divided into two parts: 
-- Code: the code for the running application
-    - client: Vue.js code for the frontend application
-    - server: Node.js code for the backend application
-- Infrastructure: contains the Terraform code to deploy the needed AWS resources for the solution
+The solution is designed with a multi-account architecture:
+
+- **Shared Services Account**: Hosts the centralized Amazon OpenSearch Serverless collection, KMS keys for encryption, and cross-account IAM roles
+- **Compute Account(s)**: Contains ECS clusters, services, and applications that generate logs to be centralized
+
+Key components:
+- Amazon ECS with Fargate for containerized applications
+- AWS FireLens with Fluent Bit for log routing
+- Amazon OpenSearch Serverless for centralized log storage and analysis
+- Cross-account IAM roles for secure log shipping
+- VPC endpoints for secure communication
+- Application Load Balancers for application access
+
+## Prerequisites
+
+Before deploying the solution, ensure you have:
+
+1. **Terraform**: Install [Terraform v1.8.5](https://releases.hashicorp.com/terraform/1.8.5/) or above
+2. **AWS CLI**: Configure AWS credentials for both shared services and compute accounts
+3. **Multi-Account Setup**: Access to at least two AWS accounts (shared services and compute)
+4. **IAM Permissions**: Administrative access in both accounts to create cross-account roles
+
+Configure AWS credentials:
+```shell
+[shared-services-profile]
+aws_access_key_id = <shared_services_access_key>
+aws_secret_access_key = <shared_services_secret_key>
+
+[compute-profile]
+aws_access_key_id = <compute_access_key>
+aws_secret_access_key = <compute_secret_key>
+```
 
 ## Infrastructure
 
-The Infrastructure folder contains the terraform code to deploy the AWS resources. The *Modules* folder has been created to store the Terraform modules used in this project. The *Templates* folder contains the different configuration files needed within the modules. The Terraform state is stored locally in the machine where you execute the terraform commands, but feel free to set a Terraform backend configuration like an AWS S3 Bucket or Terraform Cloud to store the state remotely. The AWS resources created by the script are detailed bellow:
+The infrastructure is organized into two main Terraform configurations:
 
-- AWS Networking resources, following best practices for HA
-- 2 ECR Repositories
-- 1 ECS Cluster
-- 2 ECS Services
-- 2 Task definitions
-- 4 Autoscaling Policies + Cloudwatch Alarms
-- 2 Application Load Balancer (Public facing)
-- IAM Roles and policies for ECS Tasks, CodeBuild, CodeDeploy and CodePipeline
-- Security Groups for ALBs and ECS tasks
-- 2 CodeBuild Projects
-- 2 CodeDeploy Applications
-- 1 CodePipeline pipeline
-- 2 S3 Buckets (1 used by CodePipeline to store the artifacts and another one used to store assets accessible from within the application)
-- 1 DynamoDB table (used by the application)
-- 1 SNS topic for notifications
+### tf-shared-services/
+Deploys resources in the shared services account:
+- Amazon OpenSearch Serverless collection
+- KMS keys for encryption
+- Cross-account IAM roles for compute accounts
+- OpenSearch access and network policies
 
-## Infrastructure Architecture
+### tf-compute/
+Deploys resources in compute accounts:
+- VPC with public/private subnets
+- ECS Cluster with Fargate capacity providers
+- ECS Services with FireLens logging configuration
+- Application Load Balancers
+- Security groups and VPC endpoints
+- Cross-account IAM roles for OpenSearch access
 
-The following diagram represents the Infrastructure architecture being deployed with this project:
-
-<p align="center">
-  <img src="Documentation_assets/Infrastructure_architecture.png"/>
-</p>
-
-### Infrastructure considerations due to demo proposals
-The task definition template (Infrastructure/Templates/taskdef.json) that enables the CodePipeline to execute a Blue/Green deployment in ECS has hardcoded values for the memory and CPU values for the server and client application.
-
-Feel free to change it, by adding for example a set of "sed" commands in CodeBuild (following the ones already provided as example) to replace the values dynamically.
-
-Feel free to create a subscriptor for the SNS topic created by this code, in order to get informed of the status of each finished CodeDeploy deployment.
-
-## CI/CD Architecture
-
-The following diagram represents the CI/CD architecture being deployed with this project:
-
-<p align="center">
-  <img src="Documentation_assets/CICD_architecture.png"/>
-</p>
-
-## Prerequisites
-There are general steps that you must follow in order to launch the infrastructure resources.
-
-Before launching the solution please follow the next steps:
-
-1) Install Terraform, use Terraform v0.13 or above. You can visit [this](https://releases.hashicorp.com/terraform/) Terraform official webpage to download it.
-2) Configure the AWS credentials into your machine (~/.aws/credentials). You need to use the following format:
-
-```shell
-    [AWS_PROFILE_NAME]
-    aws_access_key_id = Replace_with_the_correct_access_Key
-    aws_secret_access_key = Replace_with_the_correct_secret_Key
-```
-
-3) Generate a GitHub token. You can follow [this](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token) steps to generate it.
+**Key AWS Resources Created:**
+- Amazon OpenSearch Serverless collection
+- Amazon ECS cluster and services
+- AWS FireLens with Fluent Bit containers
+- Application Load Balancers
+- VPC with NAT Gateway
+- Cross-account IAM roles and policies
+- KMS keys for encryption
+- Security groups and VPC endpoints
 
 ## Usage
 
-**1.** Fork this repository and create the GitHub token granting access to this new repository in your account.
+### 1. Deploy Shared Services Infrastructure
 
-**2.** Clone that recently forked repository from your account (not the one from the aws-sample organization) and change the directory to the appropriate one as shown below:
+First, deploy the shared services infrastructure that will host the centralized OpenSearch collection:
 
 ```bash
-cd Infrastructure/
+cd tf-shared-services/
 ```
 
-**3.** Run Terraform init to download the providers and install the modules
-
-```shell
-terraform init 
-```
-**4.** Run the terraform plan command, feel free to use a tfvars file to specify the variables.
-You need to set at least the following variables:
-+ **aws_profile** = according to the profiles name in ~/.aws/credentials
-+ **aws_region** = the AWS region in which you want to create the resources
-+ **environment_name** = a unique name used for concatenation to give place to the resources names
-+ **github_token** = your GitHub token, the one generated a few steps above
-+ **repository_name** = your GitHub repository name
-+ **repository_owner** = the owner of the GitHub repository used
-
-```shell
-terraform plan -var aws_profile="your-profile" -var aws_region="your-region" -var environment_name="your-env" -var github_token="your-personal-token" -var repository_name="your-github-repository" -var repository_owner="the-github-repository-owner"
+Create a `terraform.tfvars` file with your configuration:
+```hcl
+prefix = "my-logging"
+aws_region = "us-west-2"
+target_compute_accounts = {
+  "dev" = "123456789012"
+  "prod" = "987654321098"
+}
 ```
 
-Example of the previous command with replaced dummy values:
-
-```shell
-terraform plan -var aws_profile="development" -var aws_region="eu-central-1" -var environment_name="developmentenv" -var github_token="your-personal-token" -var repository_name="your-github-repository" -var repository_owner="the-github-repository-owner"
-```
- 
-**5.** Review the terraform plan, take a look at the changes that terraform will execute:
-
-```shell
-terraform apply -var aws_profile="your-profile" -var aws_region="your-region" -var environment_name="your-env" -var github_token="your-personal-token" -var repository_name="your-github-repository" -var repository_owner="the-github-repository-owner"
-```
-
-**6.** Once Terraform finishes the deployment, open the AWS Management Console and go to the AWS CodePipeline service. You will see that the pipeline, which was created by this Terraform code, is in progress. Add some files and DynamoDB items as mentioned [here](#client-considerations-due-to-demo-proposals). Once the pipeline finished successfully and the before assets were added, go back to the console where Terraform was executed, copy the *application_url* value from the output and open it in a browser.
-
-**7.** In order to access the also implemented Swagger endpoint, copy the *swagger_endpoint* value from the Terraform output and open it in a browser.
-
-## Autoscaling test
-
-To test how your application will perform under a peak of traffic, a stress test configuration file is provided.
-
-For this stress test [Artillery](https://artillery.io/) is being used. Please be sure to install it following [these](https://artillery.io/docs/guides/getting-started/installing-artillery.html) steps.
-
-Once installed, please change the ALB DNS to the desired layer to test (front/backend) in the **target** attribute, which you can copy from the generated Terraform output, or you can also search it in the AWS Management Console.
-
-To execute it, run the following commands:
-
-*Frontend layer:*
+Deploy the infrastructure:
 ```bash
-artillery run Code/client/src/tests/stresstests/stress_client.yml
+terraform init
+terraform plan
+terraform apply
 ```
 
-*Backend layer:*
+### 2. Deploy Compute Infrastructure
+
+Next, deploy the compute infrastructure in your target accounts:
+
 ```bash
-artillery run Code/server/src/tests/stresstests/stress_server.yml
+cd ../tf-compute/
 ```
 
-To learn more about Amazon ECS Autoscaling, please take a look to [this](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-auto-scaling.html) documentation.
-## Application Code
+Create a `terraform.tfvars` file:
+```hcl
+prefix = "my-logging"
+aws_region = "us-west-2"
+primary_cidr = "10.0.0.0/16"
+terraform_shared_services_deploy_iam_role_arn = "arn:aws:iam::SHARED-SERVICES-ACCOUNT:role/my-logging-COMPUTE-ACCOUNT-terraform-deployment-role"
 
-### Client app
-
-The Client folder contains the code to run the frontend. This code is written in Vue.js and uses the port 80 in the deployed version, but when run localy it uses port 3000.
-
-The application folder structure is separeted in components, views and services, despite the router and the assets.
-
-### Client considerations due to demo proposals
-1) The assets used by the client application are going to be requested from the S3 bucket created with this code. Please add 3 images to the created S3 bucket.
-
-2) The DynamoDB structure used by the client application is the following one:
-
-```shell
-  - id: N (HASH)
-  - path: S
-  - title: S
-```
-Feel free to change the structure as needed. But in order to have full demo experience, please add 3 DynamoDB Items with the specified structure from above. Below is an example.
-
-*Note: The path attribute correspondes to the S3 Object URL of each added asset from the previous step.*
-
-Example of a DynamoDB Item:
-
-```json
-{
-  "id": {
-    "N": "1"
-  },
-  "path": {
-    "S": "https://mybucket.s3.eu-central-1.amazonaws.com/MyImage.jpeg"
-  },
-  "title": {
-    "S": "My title"
+ecs_applications = {
+  "web-app" = {
+    image          = "nginx:latest"
+    container_port = 80
+    cpu            = 256
+    memory         = 512
+    desired_count  = 2
   }
 }
 ```
 
-### Server app
+Deploy the infrastructure:
+```bash
+terraform init
+terraform plan
+terraform apply
+```
 
-The Server folder contains the code to run the backend. This code is written in Node.js and uses the port 80 in the deployed version, but when run localy it uses port 3001.
+### 3. Using the Makefile
 
-Swagger was also implemented in order to document the APIs. The Swagger endpoint is provided as part of the Terraform output, you can grab the output link and access it through a browser.
+Alternatively, you can use the provided Makefile for easier deployment:
 
-The server exposes 3 endpoints:
-- /status: serves as a dummy endpoint to know if the server is up and running. This one is used as the health check endpoint by the AWS ECS resources
-- /api/getAllProducts: main endpoint, which returns all the Items from an AWS DynamoDB table
-- /api/docs: the Swagger endpoint for the API documentation
+```bash
+# Deploy shared services
+make create-shared-services
+
+# Deploy compute infrastructure
+make create-compute
+```
+
+### 4. Accessing Logs
+
+Once deployed, logs from your ECS applications will be automatically shipped to the centralized OpenSearch Serverless collection. You can:
+
+1. Access the OpenSearch Dashboards through the AWS Console
+2. Create index patterns for your application logs (e.g., `my-logging-web-app-*`)
+3. Build visualizations and dashboards for log analysis
+4. Set up alerts based on log patterns
+
+### 5. Log Format
+
+Logs are shipped with the following structure:
+- **Index Pattern**: `{prefix}-{application-name}-YYYY.MM.DD`
+- **Fields**: Standard container logs with additional metadata
+- **Retention**: Managed by OpenSearch Serverless policies
 
 ## Cleanup
 
-Run the following command if you want to delete all the resources created before:
+To destroy the infrastructure, run the following commands in reverse order:
 
-```shell
-terraform destroy -var aws_profile="your-profile" -var AWS_REGION="your-region" -var environment_name="your-env" -var github_token="your-personal-token" -var repository_name="your-github-repository" - var repository_owner="the-github-repository-owner"
+```bash
+# Destroy compute infrastructure first
+cd tf-compute/
+terraform destroy
+
+# Then destroy shared services
+cd ../tf-shared-services/
+terraform destroy
+```
+
+Or use the Makefile:
+```bash
+make destroy-compute
+make destroy-shared-services
 ```
 
 ## Security
